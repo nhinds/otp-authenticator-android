@@ -323,4 +323,6 @@
     2-step verification protects your Google account even if your password is stolen.
   </string>
 
+  <string name="uninitialized_widget_user">please click the icon to configure</string>
+  <string name="hotp_widget_text">open app for pin</string>
 </resources>
