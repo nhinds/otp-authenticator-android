@@ -14,7 +14,6 @@ import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.util.Log;
@@ -189,8 +188,10 @@ public class AuthenticatorWidget extends AppWidgetProvider {
         0, intent, 0);
     AlarmManager alarmManager = (AlarmManager) context.getSystemService(
         Context.ALARM_SERVICE);
+    OtpSource otpProvider = DependencyInjector.getOtpProvider();
+	long timeTillNextCounterValue = TotpCountdownTask.getTimeTillNextCounterValue(otpProvider.getTotpCounter(), otpProvider.getTotpClock().currentTimeMillis());
     alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, 
-        SystemClock.elapsedRealtime(), updatePeriod, pendingIntent);
+        SystemClock.elapsedRealtime() + timeTillNextCounterValue, updatePeriod, pendingIntent);
   }
 
   /**

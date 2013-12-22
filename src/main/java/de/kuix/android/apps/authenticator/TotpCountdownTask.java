@@ -142,6 +142,10 @@ class TotpCountdownTask implements Runnable {
   private long getCounterValue(long time) {
     return mCounter.getValueAtTime(Utilities.millisToSeconds(time));
   }
+  
+  private long getTimeTillNextCounterValue(long time) {
+	  return getTimeTillNextCounterValue(mCounter, time);
+  }
 
   /**
    * Gets the time remaining till the counter assumes its next value.
@@ -150,10 +154,10 @@ class TotpCountdownTask implements Runnable {
    *
    * @return time (milliseconds) till next value.
    */
-  private long getTimeTillNextCounterValue(long time) {
-    long currentValue = getCounterValue(time);
+  public static long getTimeTillNextCounterValue(TotpCounter counter, long time) {
+    long currentValue = counter.getValueAtTime(Utilities.millisToSeconds(time));
     long nextValue = currentValue + 1;
-    long nextValueStartTime = Utilities.secondsToMillis(mCounter.getValueStartTime(nextValue));
+    long nextValueStartTime = Utilities.secondsToMillis(counter.getValueStartTime(nextValue));
     return nextValueStartTime - time;
   }
 
