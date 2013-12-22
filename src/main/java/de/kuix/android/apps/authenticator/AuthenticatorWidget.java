@@ -1,6 +1,9 @@
 // Copyright (C) 2009 Google Inc.
 
-package com.google.android.apps.authenticator;
+package de.kuix.android.apps.authenticator;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -17,8 +20,9 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
-
-import com.google.android.apps.authenticator.AccountDb.OtpType;
+import de.kuix.android.apps.authenticator.AccountDb.OtpType;
+import de.kuix.android.apps.authenticator.testability.DependencyInjector;
+import de.kuix.android.apps.authenticator2.R;
 
 
 /**
@@ -29,26 +33,22 @@ public class AuthenticatorWidget extends AppWidgetProvider {
 
   private static final String TAG = "AuthenticatorWidget";
   
-  // max length of the username in the widget
+  /** max length of the username in the widget */
   private static int mMaxUserNameLength = 18;
   
-  // Configured users
-  private static String[] mUsers;
+  /** Configured users */
+  private static List<String> mUsers;
   
-  // Index into mUsers
+  /** Currently displayed user from mUsers */
   private static int mUsersIdx;
   
-  // How often the pin is updated in milliseconds.
+  /** How often the pin is updated in milliseconds. */
   private static final int updatePeriod = 30000;
   
   @Override
   public void onUpdate(Context context, AppWidgetManager appWidgetManager,
       int[] appWidgetIds) {
     
-    AccountDb.initialize(context);
-    
-    Intent intent;
-    PendingIntent pendingIntent;
     RemoteViews update = new RemoteViews(context.getPackageName(), R.layout.widget_main);
    
     Log.i(TAG, "Widget updating");
@@ -82,25 +82,11 @@ public class AuthenticatorWidget extends AppWidgetProvider {
    * Update the configured user list.
    */
   public static void getUsers() {
-    Cursor cursor = AccountDb.getNames();
-    try {
-      if (AccountDb.cursorIsEmpty(cursor)) {
-        mUsers = new String[0];
-        return;
-      }
-
-      mUsers = new String[cursor.getCount()];
-      int index = cursor.getColumnIndex(AccountDb.EMAIL_COLUMN);
-      for (int i = 0; i < cursor.getCount(); i++) {
-        cursor.moveToPosition(i);
-        mUsers[i] = cursor.getString(index);
-      }
-      // if user count changes, index could be invalid, so repair it
-      if (mUsersIdx >= cursor.getCount()) {
-        mUsersIdx = 0;
-      }
-    } finally {
-      AccountDb.tryCloseCursor(cursor);
+	mUsers = new ArrayList<String>();
+	DependencyInjector.getAccountDb().getNames(mUsers);
+    // if user count changes, index could be invalid, so repair it
+    if (mUsersIdx >= mUsers.size()) {
+      mUsersIdx = 0;
     }
   }
   
@@ -111,21 +97,24 @@ public class AuthenticatorWidget extends AppWidgetProvider {
    */
   private static int getUserCount() {
     getUsers();
-    return mUsers.length;
+    return mUsers.size();
   }
   
   private static String getCurrentPin(Context context, String user) {
-    String pin = new String();
-    
-    OtpType type = AccountDb.getType(user);
+    OtpType type = DependencyInjector.getAccountDb().getType(user);
     
     if (type == OtpType.TOTP) {
-      pin = AuthenticatorActivity.computePin(
-          AuthenticatorActivity.getSecret(user), null);
+      try {
+		return DependencyInjector.getOtpProvider().getNextCode(user);
+	} catch (OtpSourceException e) {
+		Log.e(TAG, "Error getting OTP code", e);
+		return "OTP exception: " + e.getMessage();
+	}
     } else if (type == OtpType.HOTP) {
-      pin = context.getResources().getString(R.string.hotp_widget_text);
+      return context.getResources().getString(R.string.hotp_widget_text);
+    } else {
+      return "";
     }
-    return pin;
   }
   
   /**
@@ -211,8 +200,8 @@ public class AuthenticatorWidget extends AppWidgetProvider {
    *  @param index the direction to increment
    */
   public static String getNextUser(int index) {
-    mUsersIdx = (mUsersIdx + index + mUsers.length) % mUsers.length;
-    return mUsers[mUsersIdx];
+    mUsersIdx = (mUsersIdx + index + mUsers.size()) % mUsers.size();
+    return getCurrentUser();
   }
  
   /**
@@ -220,7 +209,7 @@ public class AuthenticatorWidget extends AppWidgetProvider {
    * pressed.
    */
   public static String getCurrentUser() {
-    return mUsers[mUsersIdx];
+    return mUsers.get(mUsersIdx);
   }
   
   /**
@@ -240,8 +229,6 @@ public class AuthenticatorWidget extends AppWidgetProvider {
       String action = intent.getAction();
       RemoteViews remoteView = new RemoteViews(context.getPackageName(), R.layout.widget_main);
 
-      String user = null;
-      String pinValue = null;
       if (NEXT_USER.equals(action)) {
         getNextUser(1);
         remoteView = setupButtons(context);

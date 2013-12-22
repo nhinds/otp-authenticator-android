@@ -415,6 +415,12 @@ public class AuthenticatorActivity extends TestableActivity {
    */
   // @VisibleForTesting
   public void refreshUserList(boolean isAccountModified) {
+	// If the users have changed, let the (potentially running) widget know it needs to be
+	// updated
+	Intent intent = new Intent(AuthenticatorWidget.WidgetReceiver.APPWIDGET_UPDATE);
+	intent.setClass(this, AuthenticatorWidget.WidgetReceiver.class);
+	sendBroadcast(intent);
+
     ArrayList<String> usernames = new ArrayList<String>();
     mAccountDb.getNames(usernames);
 
